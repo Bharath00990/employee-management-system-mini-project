@@ -1,31 +1,52 @@
-﻿import React, { useState } from "react";
-import { Box, useMediaQuery, useTheme } from "@mui/material";
-import { Outlet } from "react-router-dom";
-import Sidebar from "./Sidebar";
-import Header from "./Header";
+import React from 'react';
+import { Outlet, Navigate } from 'react-router-dom';
+import Sidebar from './Sidebar';
+import Navbar from './Navbar';
+import { useAuth } from '../../context/AuthContext';
 
 const DashboardLayout = () => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={{
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'var(--bg-primary)',
+        color: 'var(--text-primary)'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '3px solid var(--border-color)',
+            borderTopColor: 'var(--accent-primary)',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 1rem'
+          }} />
+          <p style={{ fontWeight: 600 }}>Loading SECUREX EMS Portal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
-      <Sidebar
-        collapsed={collapsed}
-        onToggle={() => setCollapsed((p) => !p)}
-        mobileOpen={mobileOpen}
-        onMobileClose={() => setMobileOpen(false)}
-        isMobile={isMobile}
-      />
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
-        <Header onMobileMenuOpen={() => setMobileOpen(true)} />
-        <Box component="main" sx={{ flex: 1, p: { xs: 2, sm: 3 }, overflow: "auto" }}>
+    <div className="app-container">
+      <Sidebar />
+      <div className="main-content">
+        <Navbar />
+        <main className="content-body">
           <Outlet />
-        </Box>
-      </Box>
-    </Box>
+        </main>
+      </div>
+    </div>
   );
 };
 

@@ -1,177 +1,109 @@
-﻿# EMS Pro - Employee Management System
+# 🚀 SECUREX Employee Management System (EMS)
 
-A production-quality, full-stack Employee Management System built with React, Node.js, Express, and MongoDB. Features a modern SaaS-style admin dashboard with JWT authentication, role-based authorization, interactive charts, and full CRUD operations.
-
----
-
-## Features
-
-- **JWT Authentication** with bcrypt password hashing
-- **Role-Based Access Control** (Admin / User)
-- **Beautiful Dashboard** with Recharts analytics
-- **Full Employee CRUD** with search, filter, pagination, sort
-- **Dark / Light Mode** with localStorage persistence
-- **Framer Motion Animations** (page transitions, card entrances, hover effects)
-- **Responsive Design** — desktop, tablet, mobile
-- **Snackbar Notifications** for all actions
-- **Skeleton Loading States**
-- **Confirmation Dialogs** for destructive actions
+A comprehensive enterprise-grade **Employee Management System** built with **Spring Boot 3.x**, **PostgreSQL**, **Spring Security (JWT)**, and **React 18 + Vite**.
 
 ---
 
-## Tech Stack
+## 🏛️ System Architecture
 
-| Frontend | Backend |
-|---|---|
-| React 18 + Vite | Node.js + Express |
-| Material UI (MUI) | MongoDB + Mongoose |
-| Recharts | JWT + bcryptjs |
-| Framer Motion | express-validator |
-| React Router v6 | helmet, cors, morgan |
-| Axios | dotenv |
-
----
-
-## Project Structure
-
+```text
+React 18 Frontend (Vite, Framer Motion, Lucide, Recharts)
+       │
+       │ HTTP / REST / JSON (Axios + JWT Bearer Interceptors)
+       ▼
+Spring Boot REST API (Port 8080)
+       │
+       ▼
+Spring Security & JWT Authentication Filter
+       │
+       ▼
+Controller Layer (Role-Based Permissions & Endpoints)
+       │
+       ▼
+Service Layer & Business Validations
+       │
+       ▼
+Spring Data JPA / Hibernate Repositories
+       │
+       ▼
+PostgreSQL Database (Database: employee_management_db)
 ```
+
+---
+
+## 📂 Project Structure
+
+```text
 employee-management-system/
-├── backend/          # Express REST API
-│   ├── config/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── models/
-│   ├── routes/
-│   ├── seed/
-│   └── server.js
-└── frontend/         # React + Vite
+├── backend/
+│   ├── pom.xml
+│   └── src/main/
+│       ├── java/com/ems/
+│       │   ├── config/ (WebSecurityConfig, DataInitializer)
+│       │   ├── controller/ (Auth, Employee, Leave, Salary, Parking, Projects, Notifications, Audit)
+│       │   ├── dto/ (LoginRequest, JwtResponse, ApiResponse)
+│       │   ├── entity/ (User, Role, Employee, Attendance, LeaveRequest, Salary, ParkingSlot, Project...)
+│       │   ├── exception/ (GlobalExceptionHandler, ResourceNotFound, Conflict)
+│       │   ├── repository/ (JPA Repositories with custom queries)
+│       │   ├── security/ (JwtUtils, AuthTokenFilter, UserDetailsServiceImpl)
+│       │   └── service/ (AuditLogService, NotificationService)
+│       └── resources/application.properties
+│
+└── frontend/
+    ├── package.json
+    ├── vite.config.js
     └── src/
-        ├── components/
-        ├── context/
-        ├── pages/
-        ├── services/
-        ├── theme/
-        └── utils/
+        ├── components/layout/ (Navbar, Sidebar, DashboardLayout)
+        ├── context/ (AuthContext with Theme & User session)
+        ├── pages/ (AdminDashboard, EmployeeManagement, Leaves, Payroll, Parking, Projects, AuditLogs...)
+        ├── services/ (api.js Axios interceptor)
+        └── index.css (Custom CSS Variables, Tokens, Dark Mode)
 ```
 
 ---
 
-## Installation & Setup
+## 🔑 Default Seed Credentials
 
-### Prerequisites
-- Node.js >= 18
-- MongoDB (local or Atlas)
+When Spring Boot starts up with PostgreSQL, the `DataInitializer` seeds realistic sample data:
 
-### 1. Clone the repository
-```bash
-git clone <repo-url>
-cd employee-management-system
+| Role | Username | Password | Access Capabilities |
+| :--- | :--- | :--- | :--- |
+| **System Admin** | `admin` | `admin123` | Full control across all 12 modules, users, payroll, reports, and logs |
+| **Engineering Manager** | `manager1` | `manager123` | Leave review/approvals, project management, employee tracking |
+| **Product Manager** | `manager2` | `manager123` | Deliverable timelines and team assignments |
+| **Employee 1** | `emp1` | `emp123` | Clock-in/out, leave requests, pay slips, parking bookings |
+
+---
+
+## 🛠️ Setup & Running
+
+### 1. PostgreSQL Database Setup
+1. Ensure PostgreSQL is installed and running on port `5432`.
+2. Create the database:
+   ```sql
+   CREATE DATABASE employee_management_db;
+   ```
+3. *(Optional)* If your PostgreSQL password differs from default, set environment variables:
+   ```powershell
+   $env:DB_HOST="localhost"
+   $env:DB_PORT="5432"
+   $env:DB_NAME="employee_management_db"
+   $env:DB_USERNAME="postgres"
+   $env:DB_PASSWORD="your_postgres_password"
+   ```
+
+### 2. Backend (Spring Boot 3.x)
+```powershell
+cd employee-management-system/backend
+mvn spring-boot:run
 ```
+* Backend runs at: `http://localhost:8080`
+* Spring Data JPA will automatically create and update all tables in `employee_management_db`.
 
-### 2. Backend Setup
-```bash
-cd backend
+### 3. Frontend (React 18 + Vite)
+```powershell
+cd employee-management-system/frontend
 npm install
-cp .env.example .env
-# Edit .env with your MongoDB URI and JWT secret
 npm run dev
 ```
-
-### 3. Frontend Setup
-```bash
-cd frontend
-npm install
-cp .env.example .env
-npm run dev
-```
-
----
-
-## Environment Variables
-
-### Backend (`backend/.env`)
-```env
-PORT=5000
-MONGO_URI=mongodb://localhost:27017/employee-management-system
-JWT_SECRET=your_super_secret_jwt_key_change_in_production
-JWT_EXPIRE=7d
-NODE_ENV=development
-```
-
-### Frontend (`frontend/.env`)
-```env
-VITE_API_URL=http://localhost:5000/api
-```
-
----
-
-## Seed Database
-
-```bash
-cd backend
-npm run seed
-```
-
-**Seeded Credentials:**
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@ems.com | Admin@123 |
-| User | john@ems.com | User@123 |
-
----
-
-## API Endpoints
-
-### Authentication
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| POST | /api/auth/register | Public | Register user |
-| POST | /api/auth/login | Public | Login |
-| GET | /api/auth/me | Private | Get current user |
-
-### Employees
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| GET | /api/employees | Private | List employees (search, filter, paginate) |
-| GET | /api/employees/:id | Private | Get single employee |
-| POST | /api/employees | Admin only | Create employee |
-| PUT | /api/employees/:id | Admin only | Update employee |
-| DELETE | /api/employees/:id | Admin only | Delete employee |
-
-### Dashboard
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| GET | /api/dashboard/stats | Private | Summary statistics |
-| GET | /api/dashboard/department-distribution | Private | Dept distribution |
-| GET | /api/dashboard/employee-growth | Private | Growth over 6 months |
-| GET | /api/dashboard/status-breakdown | Private | Status counts |
-
----
-
-## Sample API Request
-
-```bash
-curl -X GET http://localhost:5000/api/employees \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
-
----
-
-## Authentication Flow
-
-1. User POSTs credentials to `/api/auth/login`
-2. Server validates, returns JWT token
-3. Frontend stores token in `localStorage`
-4. All subsequent requests include `Authorization: Bearer <token>` header
-5. JWT middleware verifies token on protected routes
-
----
-
-## Future Improvements
-
-- Email notifications on employee creation
-- Export employees to CSV/PDF
-- Leave management module
-- Performance review system
-- Multi-tenant support
-- 2FA authentication
+* Frontend runs at: `http://localhost:5173`
