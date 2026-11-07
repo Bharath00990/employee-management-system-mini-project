@@ -1,75 +1,130 @@
 package com.ems.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "employees",
-       indexes = {
-           @Index(name = "idx_emp_employee_id", columnList = "employeeId"),
-           @Index(name = "idx_emp_department", columnList = "department"),
-           @Index(name = "idx_emp_email", columnList = "email")
-       })
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class Employee {
+@Table(name = "employees")
+public class Employee extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 30)
-    private String employeeId; // e.g. EMP-1001
+    @OneToOne
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    private User user;
 
-    @Column(nullable = false, length = 50)
+    @Column(nullable = false, unique = true)
+    private String employeeCode;
+
+    @Column(nullable = false)
     private String firstName;
 
-    @Column(nullable = false, length = 50)
+    @Column(nullable = false)
     private String lastName;
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(length = 20)
+    @Column
     private String phone;
 
-    @Column(nullable = false, length = 50)
+    @Column
     private String department;
 
-    @Column(nullable = false, length = 50)
+    @Column
     private String designation;
 
     @Column(nullable = false)
-    private LocalDate joiningDate;
+    private LocalDate dateOfJoining;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private Double salary = 0.0;
+    // Getters and Setters
 
-    @Column(nullable = false)
-    @Builder.Default
-    private String status = "ACTIVE"; // ACTIVE, INACTIVE, ON_LEAVE
+    public Long getId() {
+        return id;
+    }
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", referencedColumnName = "id")
-    @JsonIgnoreProperties({"password", "employee", "hibernateLazyInitializer", "handler"})
-    private User user;
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    @CreationTimestamp
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
+    public User getUser() {
+        return user;
+    }
 
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public String getEmployeeCode() {
+        return employeeCode;
+    }
+
+    public void setEmployeeCode(String employeeCode) {
+        this.employeeCode = employeeCode;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(String department) {
+        this.department = department;
+    }
+
+    public String getDesignation() {
+        return designation;
+    }
+
+    public void setDesignation(String designation) {
+        this.designation = designation;
+    }
+
+    public LocalDate getDateOfJoining() {
+        return dateOfJoining;
+    }
+
+    public void setDateOfJoining(LocalDate dateOfJoining) {
+        this.dateOfJoining = dateOfJoining;
+    }
 }

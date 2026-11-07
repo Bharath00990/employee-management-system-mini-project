@@ -1,25 +1,31 @@
-# Maven / Java
-**/target/
+# Java / Maven
+target/
+*.jar
+*.war
+*.ear
 *.class
 
-# Node
-**/node_modules/
-frontend/dist/
+# Node / Vite
+node_modules/
+dist/
+dist-ssr/
+*.local
 
-# Environment files
+# Env files
 .env
-*.env
-application-local.properties
+.env.*
+!.env.example
 
-# IDE
-.vscode/
+# IDEs / OS
 .idea/
+.vscode/
 *.iml
+.DS_Store
+Thumbs.db
 
 # Logs
 *.log
-spring-error.txt
+logs/
 
-# OS
-.DS_Store
-Thumbs.db
+# Build output
+backend/compile_output.txt

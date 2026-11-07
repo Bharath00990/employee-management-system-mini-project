@@ -1,136 +1,114 @@
-import React, { useState, useEffect } from 'react';
-import api from '../../services/api';
-import { LayoutDashboard, Users, CheckSquare, Clock, FolderKanban, Check, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { FolderKanban, CalendarOff } from 'lucide-react';
+import StatCard from '../../components/ui/StatCard';
+import DataTable from '../../components/ui/DataTable';
+import Badge from '../../components/ui/Badge';
+import LoadingState from '../../components/common/LoadingState';
+import { useAuth } from '../../hooks/useAuth';
+import { MANAGER_ROUTES } from '../../constants/routes';
+import { getManagerProjects } from '../../services/projectService';
+import { getManagerLeaves } from '../../services/leaveService';
+import { formatDate, formatEnumLabel } from '../../utils/formatters';
 
-const ManagerDashboard = () => {
+function ManagerDashboard() {
+  const { user } = useAuth();
+  const [stats, setStats] = useState(null);
+  const [recentProjects, setRecentProjects] = useState([]);
   const [pendingLeaves, setPendingLeaves] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');
 
-  const fetchManagerData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [leavesRes, projRes, empRes] = await Promise.all([
-        api.get('/leaves', { params: { status: 'PENDING' } }),
-        api.get('/projects'),
-        api.get('/employees'),
+      const [projects, leaves] = await Promise.all([
+        getManagerProjects().catch(() => []),
+        getManagerLeaves().catch(() => []),
       ]);
 
-      if (leavesRes.success) setPendingLeaves(leavesRes.data || []);
-      if (projRes.success) setProjects(projRes.data || []);
-      if (empRes.success) setEmployees(empRes.data || []);
-    } catch (err) {
-      console.error('Error fetching manager dashboard:', err);
+      const pending = leaves.filter((l) => l.status === 'PENDING');
+
+      setStats({
+        assignedProjects: projects.length,
+        pendingLeaves: pending.length,
+      });
+      setRecentProjects(projects.slice(0, 5));
+      setPendingLeaves(pending.slice(0, 5));
+    } catch {
+      // graceful
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchManagerData();
   }, []);
 
-  const handleApproveLeave = async (id) => {
-    try {
-      await api.patch(`/leaves/${id}/approve`, { comment: 'Approved by Project Manager' });
-      setMessage('Leave approved successfully!');
-      fetchManagerData();
-    } catch (err) {
-      alert(err.message || 'Operation failed');
-    }
-  };
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  const handleRejectLeave = async (id) => {
-    try {
-      await api.patch(`/leaves/${id}/reject`, { comment: 'Rejected by Project Manager' });
-      setMessage('Leave rejected.');
-      fetchManagerData();
-    } catch (err) {
-      alert(err.message || 'Operation failed');
-    }
-  };
+  const greeting = getGreeting();
+
+  const projectColumns = [
+    { key: 'name', header: 'Project' },
+    { key: 'status', header: 'Status', render: (p) => <Badge variant={p.status === 'ACTIVE' ? 'success' : 'info'}>{p.status}</Badge> },
+    { key: 'startDate', header: 'Start', render: (p) => formatDate(p.startDate) },
+    { key: 'actions', header: '', render: (p) => <Link to={`${MANAGER_ROUTES.PROJECTS}/${p.id}`} className="text-link">View</Link> },
+  ];
+
+  const leaveColumns = [
+    { key: 'employeeName', header: 'Employee' },
+    { key: 'leaveType', header: 'Type', render: (l) => formatEnumLabel(l.leaveType) },
+    { key: 'startDate', header: 'Start', render: (l) => formatDate(l.startDate) },
+    { key: 'endDate', header: 'End', render: (l) => formatDate(l.endDate) },
+  ];
+
+  if (loading) {
+    return (
+      <div className="page">
+        <LoadingState title="Loading dashboard" description="Fetching your dashboard data..." />
+      </div>
+    );
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div>
-        <h1 className="title-xl">Project Manager Operations Portal</h1>
-        <p className="text-sub">Supervise project deliverables, team capacity, and off-time approvals</p>
+    <div className="page">
+      <div className="dashboard-greeting">
+        <h2>{greeting}, {user?.username}</h2>
+        <p>Manage your projects and team.</p>
       </div>
 
-      {message && (
-        <div style={{ padding: '0.85rem', backgroundColor: 'var(--accent-success-soft)', color: 'var(--accent-success)', borderRadius: '8px', border: '1px solid var(--accent-success)', fontSize: '0.875rem' }}>
-          {message}
+      {stats ? (
+        <div className="stats-grid">
+          <StatCard icon={FolderKanban} label="Assigned Projects" value={stats.assignedProjects} variant="primary" />
+          <StatCard icon={CalendarOff} label="Pending Leaves" value={stats.pendingLeaves} variant="warning" />
         </div>
-      )}
+      ) : null}
 
-      {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
-        <div className="ems-card">
-          <p className="text-sub">Total Department Staff</p>
-          <h3 style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '2px' }}>{employees.length}</h3>
-        </div>
-        <div className="ems-card">
-          <p className="text-sub">Pending Leave Requests</p>
-          <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--accent-warning)', marginTop: '2px' }}>
-            {pendingLeaves.length}
-          </h3>
-        </div>
-        <div className="ems-card">
-          <p className="text-sub">Active Managed Projects</p>
-          <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--accent-primary)', marginTop: '2px' }}>
-            {projects.length}
-          </h3>
-        </div>
-      </div>
-
-      {/* Pending Leave Approvals Queue */}
-      <div className="ems-card">
-        <h3 className="title-md" style={{ marginBottom: '1rem' }}>Pending Leave Approvals Queue</h3>
-        {pendingLeaves.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No pending leave requests requiring review.</p>
-        ) : (
-          <div className="table-container">
-            <table className="ems-table">
-              <thead>
-                <tr>
-                  <th>Employee</th>
-                  <th>Dates</th>
-                  <th>Days</th>
-                  <th>Reason</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingLeaves.map((l) => (
-                  <tr key={l.id}>
-                    <td>
-                      <strong>{l.employee?.firstName} {l.employee?.lastName}</strong>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{l.employee?.department}</div>
-                    </td>
-                    <td>{l.startDate} to {l.endDate}</td>
-                    <td>{l.totalDays} Days</td>
-                    <td style={{ maxWidth: '200px' }}>{l.reason}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
-                        <button onClick={() => handleApproveLeave(l.id)} className="btn btn-success" style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}>
-                          <Check size={14} /> Approve
-                        </button>
-                        <button onClick={() => handleRejectLeave(l.id)} className="btn btn-danger" style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}>
-                          <X size={14} /> Reject
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="dashboard-grid">
+        <div className="dashboard-section">
+          <div className="dashboard-section__header">
+            <h3 className="dashboard-section__title">My Projects</h3>
+            <Link to={MANAGER_ROUTES.PROJECTS} className="text-link">View all</Link>
           </div>
-        )}
+          <DataTable columns={projectColumns} data={recentProjects} emptyTitle="No projects" emptyDescription="You have no projects assigned." />
+        </div>
+
+        <div className="dashboard-section">
+          <div className="dashboard-section__header">
+            <h3 className="dashboard-section__title">Pending Leave Requests</h3>
+            <Link to={MANAGER_ROUTES.LEAVE} className="text-link">View all</Link>
+          </div>
+          <DataTable columns={leaveColumns} data={pendingLeaves} emptyTitle="No pending requests" emptyDescription="All leave requests have been processed." />
+        </div>
       </div>
     </div>
   );
-};
+}
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 
 export default ManagerDashboard;

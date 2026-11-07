@@ -1,28 +1,21 @@
 package com.ems.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "leave_requests",
-       indexes = {
-           @Index(name = "idx_leave_status", columnList = "status"),
-           @Index(name = "idx_leave_start_date", columnList = "startDate")
-       })
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class LeaveRequest {
+@Table(name = "leave_requests")
+public class LeaveRequest extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,11 +23,11 @@ public class LeaveRequest {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false)
-    @JsonIgnoreProperties({"user", "hibernateLazyInitializer", "handler"})
     private Employee employee;
 
-    @Column(nullable = false, length = 30)
-    private String leaveType; // SICK, CASUAL, ANNUAL, MATERNITY, EMERGENCY
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private LeaveType leaveType;
 
     @Column(nullable = false)
     private LocalDate startDate;
@@ -42,28 +35,80 @@ public class LeaveRequest {
     @Column(nullable = false)
     private LocalDate endDate;
 
-    @Column(nullable = false)
-    private Integer totalDays;
-
-    @Column(nullable = false, length = 500)
+    @Column(columnDefinition = "TEXT")
     private String reason;
 
-    @Column(nullable = false, length = 20)
-    @Builder.Default
-    private String status = "PENDING"; // PENDING, APPROVED, REJECTED
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private LeaveStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reviewed_by_id")
-    @JsonIgnoreProperties({"password", "employee", "hibernateLazyInitializer", "handler"})
-    private User reviewedBy;
+    @JoinColumn(name = "approved_by")
+    private User approvedBy;
 
-    @Column(length = 500)
-    private String reviewComment;
+    // Getters and Setters
 
-    @CreationTimestamp
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
+    public Long getId() {
+        return id;
+    }
 
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Employee getEmployee() {
+        return employee;
+    }
+
+    public void setEmployee(Employee employee) {
+        this.employee = employee;
+    }
+
+    public LeaveType getLeaveType() {
+        return leaveType;
+    }
+
+    public void setLeaveType(LeaveType leaveType) {
+        this.leaveType = leaveType;
+    }
+
+    public LocalDate getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(LocalDate startDate) {
+        this.startDate = startDate;
+    }
+
+    public LocalDate getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(LocalDate endDate) {
+        this.endDate = endDate;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
+    }
+
+    public LeaveStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(LeaveStatus status) {
+        this.status = status;
+    }
+
+    public User getApprovedBy() {
+        return approvedBy;
+    }
+
+    public void setApprovedBy(User approvedBy) {
+        this.approvedBy = approvedBy;
+    }
 }

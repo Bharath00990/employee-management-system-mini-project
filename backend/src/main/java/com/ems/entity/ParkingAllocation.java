@@ -1,64 +1,80 @@
 package com.ems.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "parking_allocations",
-       indexes = {
-           @Index(name = "idx_parking_alloc_status", columnList = "status")
-       })
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class ParkingAllocation {
+@Table(name = "parking_allocations")
+public class ParkingAllocation extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "slot_id", nullable = false)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-    private ParkingSlot slot;
+    @JoinColumn(name = "parking_slot_id", nullable = false)
+    private ParkingSlot parkingSlot;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false)
-    @JsonIgnoreProperties({"user", "hibernateLazyInitializer", "handler"})
     private Employee employee;
 
-    @Column(nullable = false, length = 30)
-    private String vehicleNumber; // e.g. "KA-01-AB-1234"
-
-    @Column(nullable = false, length = 30)
-    private String vehicleType; // "4-Wheeler (Car)", "2-Wheeler (Bike)"
-
     @Column(nullable = false)
-    private LocalDate requestDate;
-
     private LocalDate allocatedDate;
 
-    @Column(nullable = false, length = 20)
-    @Builder.Default
-    private String status = "PENDING"; // PENDING, ALLOCATED, REJECTED, RELEASED
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ParkingAllocationStatus status;
 
-    @Column(length = 255)
-    private String remarks;
+    // Getters and Setters
 
-    @CreationTimestamp
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
+    public Long getId() {
+        return id;
+    }
 
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public ParkingSlot getParkingSlot() {
+        return parkingSlot;
+    }
+
+    public void setParkingSlot(ParkingSlot parkingSlot) {
+        this.parkingSlot = parkingSlot;
+    }
+
+    public Employee getEmployee() {
+        return employee;
+    }
+
+    public void setEmployee(Employee employee) {
+        this.employee = employee;
+    }
+
+    public LocalDate getAllocatedDate() {
+        return allocatedDate;
+    }
+
+    public void setAllocatedDate(LocalDate allocatedDate) {
+        this.allocatedDate = allocatedDate;
+    }
+
+    public ParkingAllocationStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(ParkingAllocationStatus status) {
+        this.status = status;
+    }
 }

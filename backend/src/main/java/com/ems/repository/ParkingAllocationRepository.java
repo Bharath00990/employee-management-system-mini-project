@@ -1,15 +1,13 @@
 package com.ems.repository;
-
 import com.ems.entity.ParkingAllocation;
+import com.ems.entity.ParkingAllocationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
 import java.util.List;
-import java.util.Optional;
 
-@Repository
 public interface ParkingAllocationRepository extends JpaRepository<ParkingAllocation, Long> {
-    List<ParkingAllocation> findByEmployeeIdOrderByCreatedAtDesc(Long employeeId);
-    Optional<ParkingAllocation> findByEmployeeIdAndStatus(Long employeeId, String status);
-    List<ParkingAllocation> findByStatus(String status);
+    List<ParkingAllocation> findByEmployeeId(Long employeeId);
+    List<ParkingAllocation> findByParkingSlotId(Long parkingSlotId);
+    List<ParkingAllocation> findByStatus(ParkingAllocationStatus status);
+    boolean existsByEmployeeIdAndStatus(Long employeeId, ParkingAllocationStatus status);
+    boolean existsByParkingSlotIdAndStatus(Long parkingSlotId, ParkingAllocationStatus status);
 }

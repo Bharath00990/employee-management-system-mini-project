@@ -1,154 +1,247 @@
-import React, { useState, useEffect } from "react";
-import api from "../../services/api";
-import { CalendarDays, Plus, AlertCircle, CheckCircle2, Clock } from "lucide-react";
-import { motion } from "framer-motion";
+import { useCallback, useEffect, useState } from 'react';
+import LeaveStatusBadge from '../../components/leave/LeaveStatusBadge';
+import Alert from '../../components/ui/Alert';
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import DataTable from '../../components/ui/DataTable';
+import Input from '../../components/ui/Input';
+import PageHeader from '../../components/ui/PageHeader';
+import ConfirmationDialog from '../../components/common/ConfirmationDialog';
+import ErrorState from '../../components/common/ErrorState';
+import LoadingState from '../../components/common/LoadingState';
+import { LEAVE_TYPES } from '../../constants/leaveType';
+import {
+  applyEmployeeLeave,
+  cancelEmployeeLeave,
+  getEmployeeLeaves,
+} from '../../services/leaveService';
+import { useToast } from '../../context/ToastContext';
+import { getErrorMessage } from '../../utils/apiError';
+import { formatDate, formatDateTime, formatEnumLabel } from '../../utils/formatters';
 
-const EmployeeLeavePage = () => {
+function EmployeeLeavePage() {
+  const toast = useToast();
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [error, setError] = useState('');
+  const [form, setForm] = useState({
+    leaveType: 'CASUAL',
+    startDate: '',
+    endDate: '',
+    reason: '',
+  });
+  const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState({ text: "", type: "" });
-  const [formData, setFormData] = useState({ leaveType: "ANNUAL", startDate: "", endDate: "", reason: "" });
+  const [cancelAction, setCancelAction] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
 
-  const fetchLeaves = async () => {
+  const loadLeaves = useCallback(async () => {
+    setLoading(true);
+    setError('');
+
     try {
-      const res = await api.get("/leaves/my");
-      if (res.success) setLeaves(res.data || []);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
-  };
+      const data = await getEmployeeLeaves();
+      setLeaves(data);
+    } catch (loadError) {
+      setLeaves([]);
+      setError(getErrorMessage(loadError, 'Failed to load leave history.'));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  useEffect(() => { fetchLeaves(); }, []);
+  useEffect(() => {
+    loadLeaves();
+  }, [loadLeaves]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  function handleFormChange(event) {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+  }
+
+  async function handleApplyLeave(event) {
+    event.preventDefault();
+    setFormError('');
     setSubmitting(true);
-    setMessage({ text: "", type: "" });
+
     try {
-      await api.post("/leaves", formData);
-      setMessage({ text: "Leave application submitted successfully! Awaiting manager approval.", type: "success" });
-      setShowForm(false);
-      setFormData({ leaveType: "ANNUAL", startDate: "", endDate: "", reason: "" });
-      fetchLeaves();
-    } catch (err) {
-      setMessage({ text: err.message || "Failed to submit leave request", type: "error" });
+      await applyEmployeeLeave({
+        leaveType: form.leaveType,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        reason: form.reason || undefined,
+      });
+      toast.success('Leave request submitted successfully.');
+      setForm({ leaveType: 'CASUAL', startDate: '', endDate: '', reason: '' });
+      await loadLeaves();
+    } catch (submitError) {
+      setFormError(getErrorMessage(submitError, 'Failed to submit leave request.'));
     } finally {
       setSubmitting(false);
     }
-    setTimeout(() => setMessage({ text: "", type: "" }), 5000);
-  };
+  }
 
-  const pendingCount = leaves.filter(l => l.status === "PENDING").length;
-  const approvedCount = leaves.filter(l => l.status === "APPROVED").length;
-  const rejectedCount = leaves.filter(l => l.status === "REJECTED").length;
+  async function handleConfirmCancel() {
+    if (!cancelAction) {
+      return;
+    }
+
+    setCancelling(true);
+
+    try {
+      const updated = await cancelEmployeeLeave(cancelAction.leaveId);
+      setLeaves((current) =>
+        current.map((leave) => (leave.id === updated.id ? updated : leave)),
+      );
+      toast.success('Leave request cancelled.');
+      setCancelAction(null);
+    } catch (cancelError) {
+      toast.error(getErrorMessage(cancelError, 'Failed to cancel leave request.'));
+      setCancelAction(null);
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  const columns = [
+    {
+      key: 'leaveType',
+      header: 'Type',
+      render: (leave) => formatEnumLabel(leave.leaveType),
+    },
+    {
+      key: 'startDate',
+      header: 'Start',
+      render: (leave) => formatDate(leave.startDate),
+    },
+    {
+      key: 'endDate',
+      header: 'End',
+      render: (leave) => formatDate(leave.endDate),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (leave) => <LeaveStatusBadge status={leave.status} />,
+    },
+    {
+      key: 'reason',
+      header: 'Reason',
+      render: (leave) => leave.reason ?? '—',
+    },
+    {
+      key: 'createdAt',
+      header: 'Applied',
+      render: (leave) => formatDateTime(leave.createdAt),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (leave) =>
+        leave.status === 'PENDING' ? (
+          <Button variant="danger" size="sm" onClick={() => setCancelAction({ leaveId: leave.id })}>
+            Cancel
+          </Button>
+        ) : (
+          '—'
+        ),
+    },
+  ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <h1 className="title-xl">My Leave Applications</h1>
-          <p className="text-sub">Apply for leave, track approvals, and manage your time off</p>
-        </div>
-        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-          <Plus size={16} /> {showForm ? "Cancel" : "Apply for Leave"}
-        </button>
-      </div>
+    <div className="page">
+      <PageHeader title="My Leave" description="Apply for leave and track your requests." />
 
-      {message.text && (
-        <div style={{ padding: "0.85rem 1rem", borderRadius: 8, backgroundColor: message.type === "success" ? "var(--accent-success-soft)" : "var(--accent-danger-soft)", color: message.type === "success" ? "var(--accent-success)" : "var(--accent-danger)", border: `1px solid ${message.type === "success" ? "var(--accent-success)" : "var(--accent-danger)"}`, display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem" }}>
-          {message.type === "success" ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-          {message.text}
-        </div>
+      {error ? (
+        <Alert variant="error" title="Error" onDismiss={() => setError('')}>
+          {error}
+        </Alert>
+      ) : null}
+
+      <Card title="Apply for Leave" description="Submit a new leave request.">
+        <form className="stack-form form-grid" onSubmit={handleApplyLeave}>
+          <div className="ui-input">
+            <label htmlFor="leaveType">Leave Type</label>
+            <select
+              id="leaveType"
+              name="leaveType"
+              className="ui-input__field"
+              value={form.leaveType}
+              onChange={handleFormChange}
+              required
+            >
+              {LEAVE_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {formatEnumLabel(type)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Input
+            label="Start Date"
+            name="startDate"
+            type="date"
+            value={form.startDate}
+            onChange={handleFormChange}
+            required
+          />
+          <Input
+            label="End Date"
+            name="endDate"
+            type="date"
+            value={form.endDate}
+            onChange={handleFormChange}
+            required
+          />
+          <div className="ui-input form-grid__full">
+            <label htmlFor="reason">Reason</label>
+            <textarea
+              id="reason"
+              name="reason"
+              className="ui-input__field ui-textarea"
+              value={form.reason}
+              onChange={handleFormChange}
+              rows={3}
+            />
+          </div>
+          {formError ? (
+            <p className="form-error form-grid__full" role="alert">
+              {formError}
+            </p>
+          ) : null}
+          <div className="form-grid__full">
+            <Button type="submit" loading={submitting}>
+              {submitting ? 'Submitting...' : 'Apply for Leave'}
+            </Button>
+          </div>
+        </form>
+      </Card>
+
+      {loading ? (
+        <LoadingState title="Loading leaves" description="Fetching your leave history." />
+      ) : error && !leaves.length ? (
+        <ErrorState description={error} onRetry={loadLeaves} />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={leaves}
+          emptyTitle="No leave requests"
+          emptyDescription="Apply for leave to see your history here."
+        />
       )}
 
-      {showForm && (
-        <motion.div className="ems-card" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-          <h3 className="title-md" style={{ marginBottom: "1.5rem" }}>New Leave Application</h3>
-          <form onSubmit={handleSubmit} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-            <div>
-              <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem" }}>Leave Type</label>
-              <select className="input-field" value={formData.leaveType} onChange={(e) => setFormData({ ...formData, leaveType: e.target.value })}>
-                <option value="ANNUAL">Annual Leave</option>
-                <option value="SICK">Sick Leave</option>
-                <option value="CASUAL">Casual Leave</option>
-                <option value="MATERNITY">Maternity Leave</option>
-                <option value="UNPAID">Unpaid Leave</option>
-              </select>
-            </div>
-            <div />
-            <div>
-              <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem" }}>Start Date</label>
-              <input type="date" className="input-field" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} required min={new Date().toISOString().split("T")[0]} />
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem" }}>End Date</label>
-              <input type="date" className="input-field" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} required min={formData.startDate || new Date().toISOString().split("T")[0]} />
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem" }}>Reason</label>
-              <textarea className="input-field" rows={3} value={formData.reason} onChange={(e) => setFormData({ ...formData, reason: e.target.value })} placeholder="Describe reason for your leave request..." required style={{ resize: "vertical" }} />
-            </div>
-            <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
-              <button type="submit" disabled={submitting} className="btn btn-primary">{submitting ? "Submitting..." : "Submit Application"}</button>
-            </div>
-          </form>
-        </motion.div>
-      )}
-
-      {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem" }}>
-        {[
-          { label: "Total Applications", value: leaves.length, color: "#3b82f6" },
-          { label: "Pending Review", value: pendingCount, color: "#f59e0b" },
-          { label: "Approved", value: approvedCount, color: "#10b981" },
-          { label: "Rejected", value: rejectedCount, color: "#ef4444" },
-        ].map((s) => (
-          <div key={s.label} className="ems-card" style={{ textAlign: "center" }}>
-            <h3 style={{ fontSize: "1.6rem", fontWeight: 800, color: s.color }}>{s.value}</h3>
-            <p className="text-sub" style={{ fontSize: "0.8rem" }}>{s.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Leave History */}
-      <div className="ems-card">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }}>
-          <h3 className="title-md">Leave History</h3>
-          <span className="badge badge-info">{leaves.length} Applications</span>
-        </div>
-        {loading ? (
-          <p style={{ color: "var(--text-muted)" }}>Loading...</p>
-        ) : leaves.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
-            <CalendarDays size={40} style={{ margin: "0 auto 1rem", opacity: 0.4 }} />
-            <p>No leave applications yet. Apply for your first leave!</p>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {leaves.map((l) => (
-              <div key={l.id} style={{ padding: "1rem 1.25rem", border: "1px solid var(--border-color)", borderRadius: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
-                    <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>{l.leaveType} Leave</span>
-                    <span className={`badge ${l.status === "APPROVED" ? "badge-success" : l.status === "PENDING" ? "badge-warning" : "badge-danger"}`}>{l.status}</span>
-                  </div>
-                  <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 4 }}>{l.startDate} to {l.endDate} � {l.totalDays} Day(s)</p>
-                  <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: 2 }}>{l.reason}</p>
-                </div>
-                {l.reviewComment && (
-                  <div style={{ maxWidth: "240px", padding: "0.5rem 0.75rem", backgroundColor: "var(--bg-tertiary)", borderRadius: 8, fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                    <strong>Review:</strong> {l.reviewComment}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <ConfirmationDialog
+        isOpen={Boolean(cancelAction)}
+        title="Cancel Leave Request"
+        message="Are you sure you want to cancel this pending leave request?"
+        confirmLabel="Cancel Leave"
+        confirmVariant="danger"
+        loading={cancelling}
+        onConfirm={handleConfirmCancel}
+        onCancel={() => setCancelAction(null)}
+      />
     </div>
   );
-};
+}
 
 export default EmployeeLeavePage;

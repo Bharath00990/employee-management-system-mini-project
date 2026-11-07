@@ -1,29 +1,22 @@
 package com.ems.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.LocalDateTime;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import java.math.BigDecimal;
 
 @Entity
-@Table(name = "salaries",
-       uniqueConstraints = {
-           @UniqueConstraint(name = "uk_emp_month_year", columnNames = {"employee_id", "month", "year"})
-       },
-       indexes = {
-           @Index(name = "idx_salary_period", columnList = "month, year")
-       })
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class Salary {
+@Table(name = "salaries", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"employee_id", "month", "year"})
+})
+public class Salary extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,49 +24,78 @@ public class Salary {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false)
-    @JsonIgnoreProperties({"user", "hibernateLazyInitializer", "handler"})
     private Employee employee;
 
-    @Column(nullable = false, length = 20)
-    private String month; // e.g. "January"
+    @Column(nullable = false)
+    private Integer month;
 
     @Column(nullable = false)
-    private Integer year; // e.g. 2026
+    private Integer year;
 
-    @Column(nullable = false)
-    private Double basicPay;
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal basicSalary;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private Double allowances = 0.0;
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal deductions;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private Double deductions = 0.0;
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal netSalary;
 
-    @Column(nullable = false)
-    private Double netPay; // Formula: basicPay + allowances - deductions
+    // Getters and Setters
 
-    @Column(nullable = false, length = 20)
-    @Builder.Default
-    private String paymentStatus = "PAID"; // PAID, PENDING, PROCESSING
+    public Long getId() {
+        return id;
+    }
 
-    @Column(length = 255)
-    private String remarks;
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    @CreationTimestamp
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
+    public Employee getEmployee() {
+        return employee;
+    }
 
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    public void setEmployee(Employee employee) {
+        this.employee = employee;
+    }
 
-    @PrePersist
-    @PreUpdate
-    public void calculateNetPay() {
-        double b = (basicPay != null) ? basicPay : 0.0;
-        double a = (allowances != null) ? allowances : 0.0;
-        double d = (deductions != null) ? deductions : 0.0;
-        this.netPay = b + a - d;
+    public Integer getMonth() {
+        return month;
+    }
+
+    public void setMonth(Integer month) {
+        this.month = month;
+    }
+
+    public Integer getYear() {
+        return year;
+    }
+
+    public void setYear(Integer year) {
+        this.year = year;
+    }
+
+    public BigDecimal getBasicSalary() {
+        return basicSalary;
+    }
+
+    public void setBasicSalary(BigDecimal basicSalary) {
+        this.basicSalary = basicSalary;
+    }
+
+    public BigDecimal getDeductions() {
+        return deductions;
+    }
+
+    public void setDeductions(BigDecimal deductions) {
+        this.deductions = deductions;
+    }
+
+    public BigDecimal getNetSalary() {
+        return netSalary;
+    }
+
+    public void setNetSalary(BigDecimal netSalary) {
+        this.netSalary = netSalary;
     }
 }

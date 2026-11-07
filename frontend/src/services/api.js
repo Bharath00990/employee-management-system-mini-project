@@ -1,42 +1,40 @@
 import axios from 'axios';
+import { clearAuth } from '../utils/tokenStorage';
+
+export const AUTH_UNAUTHORIZED_EVENT = 'auth:unauthorized';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8081/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api',
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request Interceptor: Attach JWT Token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('ems_token');
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('ems_token');
 
-// Response Interceptor: Global 401 & Error Handling
-api.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem('ems_token');
-      localStorage.removeItem('ems_user');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
-    }
-    const message =
-      error.response?.data?.message ||
-      error.response?.data?.error ||
-      error.message ||
-      'An unexpected error occurred';
-    return Promise.reject(new Error(message));
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
+
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+    const requestUrl = error.config?.url ?? '';
+    const isLoginRequest = requestUrl.includes('/auth/login');
+
+    if (status === 401 && !isLoginRequest) {
+      clearAuth();
+      window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT));
+      window.location.href = '/login';
+    }
+
+    return Promise.reject(error);
+  },
 );
 
 export default api;

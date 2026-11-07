@@ -1,24 +1,21 @@
-﻿import React from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import { Box, CircularProgress } from "@mui/material";
+import LoadingState from '../components/common/LoadingState';
+import { ROUTES } from '../constants/routes';
+import { useAuth } from '../hooks/useAuth';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
-const ProtectedRoute = ({ children, adminOnly = false }) => {
-  const { user, loading } = useAuth();
+function ProtectedRoute() {
+  const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-        <CircularProgress size={48} />
-      </Box>
-    );
+    return <LoadingState title="Restoring session" />;
   }
 
-  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
-  if (adminOnly && user.role !== "admin") return <Navigate to="/dashboard" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to={ROUTES.LOGIN} replace state={{ from: location }} />;
+  }
 
-  return children;
-};
+  return <Outlet />;
+}
 
 export default ProtectedRoute;

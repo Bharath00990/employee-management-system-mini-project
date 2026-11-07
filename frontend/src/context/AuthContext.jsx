@@ -1,69 +1,106 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '../services/api';
+import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import { getMe, login as loginRequest } from '../services/authService';
+import { AUTH_UNAUTHORIZED_EVENT } from '../services/api';
+import { clearAuth, getToken, getUser, setAuth } from '../utils/tokenStorage';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
-export const AuthProvider = ({ children }) => {
+function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('ems_token') || null);
-  const [theme, setTheme] = useState(localStorage.getItem('ems_theme') || 'light');
   const [loading, setLoading] = useState(true);
 
-  // Sync theme
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('ems_theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
-  };
-
-  // Restore User Profile on load
-  useEffect(() => {
-    const initializeAuth = async () => {
-      const storedToken = localStorage.getItem('ems_token');
-      const storedUser = localStorage.getItem('ems_user');
-      if (storedToken && storedUser) {
-        setUser(JSON.parse(storedUser));
-        setToken(storedToken);
-      }
-      setLoading(false);
-    };
-    initializeAuth();
+  const logout = useCallback(() => {
+    clearAuth();
+    setUser(null);
   }, []);
 
-  const login = async (username, password) => {
-    const res = await api.post('/auth/login', { username, password });
-    if (res.success && res.data) {
-      const userData = res.data;
-      setToken(userData.token);
-      setUser(userData);
-      localStorage.setItem('ems_token', userData.token);
-      localStorage.setItem('ems_user', JSON.stringify(userData));
-      return userData;
+  const login = useCallback(async (username, password) => {
+    const response = await loginRequest(username, password);
+    const nextUser = {
+      userId: response.userId,
+      username: response.username,
+      role: response.role,
+    };
+
+    setAuth(response.token, nextUser);
+    setUser(nextUser);
+
+    return nextUser;
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function restoreSession() {
+      if (!getToken()) {
+        if (isMounted) {
+          setLoading(false);
+        }
+        return;
+      }
+
+      const storedUser = getUser();
+      if (storedUser && isMounted) {
+        setUser(storedUser);
+      }
+
+      try {
+        const currentUser = await getMe();
+        if (!isMounted) {
+          return;
+        }
+
+        const nextUser = {
+          userId: currentUser.userId,
+          username: currentUser.username,
+          role: currentUser.role,
+        };
+
+        setAuth(getToken(), nextUser);
+        setUser(nextUser);
+      } catch {
+        if (isMounted) {
+          clearAuth();
+          setUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
     }
-    throw new Error(res.message || 'Login failed');
-  };
 
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('ems_token');
-    localStorage.removeItem('ems_user');
-    window.location.href = '/login';
-  };
+    restoreSession();
 
-  const hasRole = (roleName) => {
-    if (!user || !user.roles) return false;
-    return user.roles.includes(roleName);
-  };
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
-  return (
-    <AuthContext.Provider value={{ user, token, theme, toggleTheme, login, logout, hasRole, loading }}>
-      {children}
-    </AuthContext.Provider>
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setUser(null);
+    };
+
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+
+    return () => {
+      window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+    };
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      user,
+      isAuthenticated: Boolean(user),
+      loading,
+      login,
+      logout,
+    }),
+    [user, loading, login, logout],
   );
-};
 
-export const useAuth = () => useContext(AuthContext);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export { AuthContext, AuthProvider };

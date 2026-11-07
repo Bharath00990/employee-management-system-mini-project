@@ -1,9 +1,20 @@
-﻿import api from "./api";
+import api from './api';
 
-const authService = {
-  login: (email, password) => api.post("/auth/login", { email, password }),
-  register: (name, email, password, role) => api.post("/auth/register", { name, email, password, role }),
-  getMe: () => api.get("/auth/me"),
-};
+export async function login(username, password) {
+  const { data } = await api.post('/auth/login', { username, password });
+  return data;
+}
 
-export default authService;
+export async function getMe() {
+  const { data } = await api.get('/auth/me');
+  return data;
+}
+
+export async function changePassword({ currentPassword, newPassword, confirmPassword }) {
+  const { data } = await api.put('/auth/change-password', {
+    currentPassword,
+    newPassword,
+    confirmPassword,
+  });
+  return data;
+}

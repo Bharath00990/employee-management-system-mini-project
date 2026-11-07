@@ -1,14 +1,38 @@
-FROM maven:3.9-eclipse-temurin-17 AS build
+# ============================================================
+# Stage 1: Build the Spring Boot application
+# ============================================================
+FROM eclipse-temurin:21-jdk AS builder
+
 WORKDIR /app
 
-COPY pom.xml .
+# Copy Maven wrapper and pom.xml first to leverage Docker layer caching
+COPY .mvn/ .mvn
+COPY mvnw pom.xml ./
+RUN chmod +x mvnw
+RUN ./mvnw dependency:go-offline
+
+# Copy application source code
 COPY src ./src
-RUN mvn -B -DskipTests clean package
 
-FROM eclipse-temurin:17-jre
+# Build Spring Boot executable JAR
+RUN ./mvnw clean package -DskipTests
+
+# Find and stage the final runnable JAR
+RUN JAR_FILE=$(find target -maxdepth 1 -type f -name "*.jar" ! -name "*-plain.jar" | head -n 1) \
+    && cp "$JAR_FILE" target/app.jar
+
+
+# ============================================================
+# Stage 2: Lightweight Runtime Container
+# ============================================================
+FROM eclipse-temurin:21-jre
+
 WORKDIR /app
 
-COPY --from=build /app/target/employee-management-system-1.0.0.jar app.jar
+# Copy built app from Stage 1
+COPY --from=builder /app/target/app.jar app.jar
+
+# Expose server port (Render automatically maps $PORT dynamically)
 EXPOSE 8081
 
-ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT:-8081} -jar app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
